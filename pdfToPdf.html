@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Split & Crop Tool (PDF + Images)</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        :root { --primary: #007bff; --danger: #dc3545; --bg: #f4f7f6; --crop-border: #28a745; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        
+        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        
+        .header { text-align: center; margin-bottom: 25px; }
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; background: #eef2f5; padding: 15px; border-radius: 8px; }
+        
+        label { font-weight: bold; font-size: 13px; display: block; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        
+        .main-btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 15px; transition: 0.2s; }
+        .main-btn:hover { background: #0056b3; }
+        .main-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* EDITOR AREA */
+        #editor-area { margin-top: 30px; display: none; }
+        
+        .slice-card {
+            border: 1px solid #ddd;
+            margin-bottom: 40px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .slice-header {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            font-weight: bold;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .slice-image-wrapper {
+            position: relative;
+            width: 100%;
+            background: #333;
+            overflow: hidden;
+            user-select: none; 
+        }
+        
+        .slice-img { 
+            max-width: 100%; 
+            display: block; 
+            margin: 0 auto; 
+            pointer-events: none; 
+        }
+
+        /* DRAGGABLE CUT LINE */
+        .cut-line-indicator {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--danger);
+            cursor: ns-resize; 
+            z-index: 20;
+            transition: height 0.1s;
+        }
+        .cut-line-indicator:hover { height: 8px; }
+        .cut-line-indicator::after {
+            content: "DRAG ME";
+            position: absolute;
+            right: 10px;
+            top: -20px;
+            background: var(--danger);
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        /* SIDE CROP OVERLAY */
+        .crop-overlay {
+            position: absolute;
+            top: 0; 
+            height: 100%;
+            border: 2px dashed var(--crop-border);
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); 
+            z-index: 10;
+            cursor: grab;
+            display: none; 
+        }
+        
+        .crop-handle {
+            position: absolute;
+            top: 50%;
+            width: 20px;
+            height: 40px;
+            background: var(--crop-border);
+            transform: translateY(-50%);
+            cursor: ew-resize;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+        .handle-left { left: -10px; }
+        .handle-right { right: -10px; }
+
+        .tool-bar {
+            background: #fff;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            border-top: 1px solid #eee;
+        }
+        
+        .btn-sm {
+            padding: 5px 15px;
+            border: 1px solid #ccc;
+            background: #f8f9fa;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .btn-sm:hover { background: #e2e6ea; }
+        .btn-crop { background: #e8f5e9; border-color: #28a745; color: #155724; }
+        .btn-crop:hover { background: #c3e6cb; }
+
+        #final-actions { text-align: center; margin-top: 30px; display: none; padding-top: 20px; border-top: 2px dashed #ddd; }
+        #btn-download { background: #28a745; font-size: 18px; padding: 15px 40px; }
+        #loading { text-align: center; margin: 20px; display: none; color: var(--primary); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>Ultimate Split & Crop Tool (PDF + Images)</h2>
+        <p>Upload PDFs or Images -> Stitch -> Cut -> Crop -> Download</p>
+    </div>
+
+    <div class="controls">
+        <div>
+            <label>1. Upload Files (PDF or Images)</label>
+            <!-- Added multiple attribute and image accept -->
+            <input type="file" id="file-upload" accept="application/pdf, image/png, image/jpeg, image/jpg" multiple>
+        </div>
+        <div>
+            <label>2. Columns</label>
+            <select id="columns">
+                <option value="1">1 Column (Fit Page)</option>
+                <option value="2">2 Columns (Newspaper)</option>
+                <option value="3">3 Columns</option>
+            </select>
+        </div>
+        <div>
+            <label>3. Quality Scale (For PDF)</label>
+            <select id="quality">
+                <option value="1.5">Standard</option>
+                <option value="2" selected>High (Best for Print)</option>
+            </select>
+        </div>
+    </div>
+
+    <button class="main-btn" id="btn-analyze" onclick="startAnalysis()">Start Processing</button>
+    
+    <div id="loading">Reading files... Please wait...</div>
+
+    <div id="editor-area"></div>
+
+    <div id="final-actions">
+        <h3>Ready to Export?</h3>
+        <p>Check all cuts and side crops before downloading.</p>
+        <button class="main-btn" id="btn-download" onclick="generateFinalPDF()">Download PDF</button>
+    </div>
+</div>
+
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    const { jsPDF } = window.jspdf;
+
+    // --- GLOBAL STATE ---
+    let sourceCanvases = [];
+    let globalContentHeight = 0;
+    let baseWidth = 0; // Original width of source canvas
+    
+    let cutPoints = []; 
+    let cropSettings = {}; 
+
+    let maxColHeightPx = 0;
+    let pdfParams = {};
+
+    // --- 1. ANALYSIS & RENDER (UPDATED FOR IMAGES) ---
+
+    async function startAnalysis() {
+        const fileInput = document.getElementById('file-upload');
+        const files = fileInput.files;
+
+        if (files.length === 0) { alert("Please select a file."); return; }
+
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('editor-area').style.display = 'none';
+        document.getElementById('final-actions').style.display = 'none';
+        document.getElementById('btn-analyze').disabled = true;
+
+        sourceCanvases = [];
+        globalContentHeight = 0;
+        
+        // Loop through all selected files
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            
+            if (file.type === 'application/pdf') {
+                await processPdfFile(file);
+            } else if (file.type.startsWith('image/')) {
+                await processImageFile(file);
+            }
+        }
+
+        if (sourceCanvases.length === 0) {
+            alert("No valid files processed.");
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('btn-analyze').disabled = false;
+            return;
+        }
+
+        // Set base width from the first item
+        baseWidth = sourceCanvases[0].width;
+
+        // Calculate Layout
+        const numCols = parseInt(document.getElementById('columns').value);
+        const marginMM = 10;
+        const pageHeightMM = 297; 
+        const pageWidthMM = 210;
+        
+        const printableWidthMM = pageWidthMM - (2 * marginMM) - ((numCols-1)*5);
+        const colWidthMM = printableWidthMM / numCols;
+        const printableHeightMM = pageHeightMM - (2 * marginMM);
+
+        // How many pixels fit in one column height?
+        const pxToMmRatio = baseWidth / colWidthMM; 
+        maxColHeightPx = printableHeightMM * pxToMmRatio;
+
+        pdfParams = { marginMM, numCols, colWidthMM, pxToMmRatio };
+
+        // Initial Cuts
+        calculateInitialCuts();
+        
+        // Reset Crop Settings
+        cropSettings = {};
+
+        renderEditor();
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('editor-area').style.display = 'block';
+        document.getElementById('final-actions').style.display = 'block';
+        document.getElementById('btn-analyze').disabled = false;
+    }
+
+    // Helper: Process PDF
+    async function processPdfFile(file) {
+        const scale = parseFloat(document.getElementById('quality').value);
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            
+            sourceCanvases.push({ 
+                canvas, 
+                height: canvas.height, 
+                width: canvas.width, 
+                globalStartY: globalContentHeight 
+            });
+            globalContentHeight += canvas.height;
+        }
+    }
+
+    // Helper: Process Image
+    function processImageFile(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    // We don't resize yet, we just load raw. 
+                    // However, to keep aspect ratios consistent in the editor, 
+                    // the extract function will stretch them to baseWidth.
+                    // For best quality, we load full res.
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    
+                    sourceCanvases.push({ 
+                        canvas, 
+                        height: canvas.height, 
+                        width: canvas.width, 
+                        globalStartY: globalContentHeight 
+                    });
+                    globalContentHeight += canvas.height;
+                    resolve();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function calculateInitialCuts() {
+        cutPoints = [0];
+        let currentY = 0;
+        while (currentY < globalContentHeight) {
+            let nextCut = Math.min(currentY + maxColHeightPx, globalContentHeight);
+            if (nextCut > currentY) {
+                cutPoints.push(nextCut);
+                currentY = nextCut;
+            } else {
+                break;
+            }
+        }
+    }
+
+    // --- 2. EDITOR UI GENERATION ---
+
+    function renderEditor() {
+        const container = document.getElementById('editor-area');
+        container.innerHTML = '';
+
+        for (let i = 0; i < cutPoints.length - 1; i++) {
+            const startY = cutPoints[i];
+            const endY = cutPoints[i+1];
+            const sliceHeight = endY - startY;
+
+            // Initialize crop setting if not exists
+            if (!cropSettings[i]) {
+                cropSettings[i] = { left: 0, right: 100 }; // Percentages
+            }
+
+            const card = document.createElement('div');
+            card.className = 'slice-card';
+            
+            // Generate Image
+            const imgUrl = extractRegionToUrl(startY, sliceHeight);
+            
+            // HTML Structure
+            card.innerHTML = `
+                <div class="slice-header">
+                    <span>Segment #${i + 1}</span>
+                    <button class="btn-sm btn-crop" onclick="toggleCrop(${i}, this)">✂ Crop Sides</button>
+                </div>
+                <div class="slice-image-wrapper" id="wrapper-${i}">
+                    <img src="${imgUrl}" class="slice-img" id="img-${i}">
+                    
+                    <!-- Side Crop Overlay -->
+                    <div class="crop-overlay" id="crop-overlay-${i}" style="left:0%; width:100%;">
+                        <div class="crop-handle handle-left" onmousedown="startSideDrag(event, ${i}, 'left')">⬌</div>
+                        <div class="crop-handle handle-right" onmousedown="startSideDrag(event, ${i}, 'right')">⬌</div>
+                    </div>
+
+                    <!-- Vertical Drag Line (Only if not last slice) -->
+                    ${ (i < cutPoints.length - 2) ? 
+                        `<div class="cut-line-indicator" title="Drag to move cut" onmousedown="startVerticalDrag(event, ${i})"></div>` 
+                        : '' }
+                </div>
+                <div class="tool-bar">
+                    <button class="btn-sm" onclick="adjustCutButton(${i}, -10)">⬆ Up</button>
+                    <span style="font-size:12px; color:#777">Fine Tune Cut</span>
+                    <button class="btn-sm" onclick="adjustCutButton(${i}, 10)">⬇ Down</button>
+                </div>
+            `;
+            container.appendChild(card);
+            
+            updateCropVisuals(i);
+        }
+    }
+
+    // --- 3. CORE LOGIC: IMAGE EXTRACTION (Unified) ---
+
+    function extractRegionToUrl(startY, reqHeight) {
+        const tCan = document.createElement('canvas');
+        tCan.width = baseWidth;
+        tCan.height = reqHeight;
+        const ctx = tCan.getContext('2d');
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0,0, tCan.width, tCan.height);
+
+        // Find relevant pages/images and stitch them
+        for (let item of sourceCanvases) {
+            const itemStart = item.globalStartY;
+            const itemEnd = itemStart + item.height;
+            const reqEnd = startY + reqHeight;
+
+            if (itemEnd > startY && itemStart < reqEnd) {
+                let srcY = Math.max(0, startY - itemStart);
+                let destY = Math.max(0, itemStart - startY);
+                let copyHeight = Math.min(itemEnd, reqEnd) - Math.max(itemStart, startY);
+
+                // IMPORTANT: We draw using tCan.width (baseWidth) as destination width.
+                // This ensures all images (big or small) are stretched/shrunk to fit the column width consistently.
+                ctx.drawImage(item.canvas, 
+                    0, srcY, item.width, copyHeight, 
+                    0, destY, tCan.width, copyHeight
+                );
+            }
+        }
+        return tCan.toDataURL('image/jpeg', 0.9);
+    }
+
+    // --- 4. INTERACTION: VERTICAL DRAG (The Cut) ---
+
+    let isDraggingVert = false;
+    let dragIndex = -1;
+    let startDragY = 0;
+    let initialCutVal = 0;
+
+    window.startVerticalDrag = function(e, index) {
+        isDraggingVert = true;
+        dragIndex = index;
+        startDragY = e.clientY;
+        initialCutVal = cutPoints[index + 1];
+        document.body.style.cursor = 'ns-resize';
+        e.preventDefault();
+        
+        document.addEventListener('mousemove', onVerticalMove);
+        document.addEventListener('mouseup', onVerticalUp);
+    }
+
+    function onVerticalMove(e) {
+        if (!isDraggingVert) return;
+        // Visual feedback logic could be added here, but we rely on mouseUp for performance
+    }
+
+    function onVerticalUp(e) {
+        if (!isDraggingVert) return;
+        
+        const deltaY = e.clientY - startDragY;
+        const img = document.getElementById(`img-${dragIndex}`);
+        const ratio = img.naturalWidth / img.offsetWidth;
+        const deltaCanvasPx = deltaY * ratio;
+
+        adjustCutLogic(dragIndex, deltaCanvasPx);
+
+        isDraggingVert = false;
+        document.body.style.cursor = 'default';
+        document.removeEventListener('mousemove', onVerticalMove);
+        document.removeEventListener('mouseup', onVerticalUp);
+    }
+
+    window.adjustCutButton = function(index, deltaPx) {
+        adjustCutLogic(index, deltaPx * 5); 
+    }
+
+    function adjustCutLogic(index, delta) {
+        const pointIndex = index + 1;
+        const oldVal = cutPoints[pointIndex];
+        let newVal = oldVal + delta;
+
+        if (newVal <= cutPoints[pointIndex-1] + 20) newVal = cutPoints[pointIndex-1] + 20;
+        if (newVal > globalContentHeight) newVal = globalContentHeight;
+        
+        if ((newVal - cutPoints[pointIndex-1]) > maxColHeightPx) {
+            newVal = cutPoints[pointIndex-1] + maxColHeightPx;
+        }
+
+        cutPoints[pointIndex] = newVal;
+
+        let currentY = newVal;
+        for (let i = pointIndex + 1; i < cutPoints.length; i++) {
+             let nextVal = currentY + maxColHeightPx;
+             if (nextVal > globalContentHeight) nextVal = globalContentHeight;
+             cutPoints[i] = nextVal;
+             currentY = nextVal;
+             if (currentY >= globalContentHeight) {
+                 cutPoints = cutPoints.slice(0, i + 1);
+                 break;
+             }
+        }
+        if (cutPoints[cutPoints.length-1] < globalContentHeight) {
+            let lastY = cutPoints[cutPoints.length-1];
+            while(lastY < globalContentHeight) {
+                let next = Math.min(lastY + maxColHeightPx, globalContentHeight);
+                cutPoints.push(next);
+                lastY = next;
+            }
+        }
+        renderEditor(); 
+    }
+
+
+    // --- 5. INTERACTION: SIDE CROP (Left/Right) ---
+
+    window.toggleCrop = function(index, btn) {
+        const overlay = document.getElementById(`crop-overlay-${index}`);
+        const isHidden = overlay.style.display === 'none' || overlay.style.display === '';
+        
+        if (isHidden) {
+            overlay.style.display = 'block';
+            btn.innerHTML = "✅ Done";
+            btn.style.background = "#28a745";
+            btn.style.color = "white";
+        } else {
+            overlay.style.display = 'none';
+            btn.innerHTML = "✂ Crop Sides";
+            btn.style.background = "";
+            btn.style.color = "";
+            btn.className = "btn-sm btn-crop";
+        }
+    }
+
+    function updateCropVisuals(index) {
+        const overlay = document.getElementById(`crop-overlay-${index}`);
+        const settings = cropSettings[index];
+        if (!overlay) return;
+
+        overlay.style.left = settings.left + '%';
+        overlay.style.width = (settings.right - settings.left) + '%';
+    }
+
+    let isDraggingSide = false;
+    let sideDragInfo = {};
+
+    window.startSideDrag = function(e, index, side) {
+        isDraggingSide = true;
+        sideDragInfo = { index, side, startX: e.clientX };
+        e.stopPropagation(); 
+        document.body.style.cursor = 'ew-resize';
+        
+        document.addEventListener('mousemove', onSideMove);
+        document.addEventListener('mouseup', onSideUp);
+    }
+
+    function onSideMove(e) {
+        if (!isDraggingSide) return;
+        
+        const { index, side } = sideDragInfo;
+        const wrapper = document.getElementById(`wrapper-${index}`);
+        const rect = wrapper.getBoundingClientRect();
+        
+        let relativeX = e.clientX - rect.left;
+        let pct = (relativeX / rect.width) * 100;
+        
+        const settings = cropSettings[index];
+        
+        if (side === 'left') {
+            if (pct < 0) pct = 0;
+            if (pct > settings.right - 5) pct = settings.right - 5; 
+            settings.left = pct;
+        } else {
+            if (pct > 100) pct = 100;
+            if (pct < settings.left + 5) pct = settings.left + 5;
+            settings.right = pct;
+        }
+
+        updateCropVisuals(index);
+    }
+
+    function onSideUp() {
+        isDraggingSide = false;
+        document.body.style.cursor = 'default';
+        document.removeEventListener('mousemove', onSideMove);
+        document.removeEventListener('mouseup', onSideUp);
+    }
+
+
+    // --- 6. FINAL PDF GENERATION ---
+
+    window.generateFinalPDF = function() {
+        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        
+        const { marginMM, numCols, colWidthMM } = pdfParams;
+        const colGapMM = 5;
+
+        let currentPdfPage = 1;
+        let currentCol = 0;
+
+        for (let i = 0; i < cutPoints.length - 1; i++) {
+            const startY = cutPoints[i];
+            const endY = cutPoints[i+1];
+            const sliceH_Px = endY - startY;
+
+            const crop = cropSettings[i] || { left: 0, right: 100 };
+            
+            const cropCanvas = document.createElement('canvas');
+            const ctx = cropCanvas.getContext('2d');
+
+            const sourceW = baseWidth;
+            const xOffset = (crop.left / 100) * sourceW;
+            const wWidth = ((crop.right - crop.left) / 100) * sourceW;
+            
+            cropCanvas.width = wWidth;
+            cropCanvas.height = sliceH_Px;
+            
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0,0, cropCanvas.width, cropCanvas.height);
+            
+            for (let item of sourceCanvases) {
+                const itemStart = item.globalStartY;
+                const itemEnd = itemStart + item.height;
+                const reqEnd = startY + sliceH_Px;
+
+                if (itemEnd > startY && itemStart < reqEnd) {
+                    let srcY = Math.max(0, startY - itemStart);
+                    let destY = Math.max(0, itemStart - startY);
+                    let copyHeight = Math.min(itemEnd, reqEnd) - Math.max(itemStart, startY);
+
+                    // Same draw logic: fit to baseWidth, then slice the crop area
+                    ctx.drawImage(item.canvas, 
+                        // Source: We have to calculate the source X and Width relative to the original image
+                        // Since we are simulating that all images are 'baseWidth' wide in the stitched version:
+                        // We map the crop % to the current item's real width.
+                        
+                        // Wait, simpler approach:
+                        // Draw full width to temp, then crop from temp. 
+                        // To save memory, we use drawImage parameters carefully.
+                        // We assume the content is scaled to baseWidth.
+                        
+                        0, srcY, item.width, copyHeight, // Take full source width
+                        -xOffset, destY, baseWidth, copyHeight // Draw it shifted left so the crop area lands at 0
+                    );
+                }
+            }
+            
+            const croppedImgData = cropCanvas.toDataURL('image/jpeg', 0.95);
+
+            const imgHeightMM = (cropCanvas.height / cropCanvas.width) * colWidthMM;
+
+            const xPos = marginMM + (currentCol * (colWidthMM + colGapMM));
+            const yPos = marginMM; 
+
+            doc.addImage(croppedImgData, 'JPEG', xPos, yPos, colWidthMM, imgHeightMM);
+
+            currentCol++;
+            if (currentCol >= numCols) {
+                if (i < cutPoints.length - 2) {
+                    doc.addPage();
+                    currentPdfPage++;
+                    currentCol = 0;
+                }
+            }
+        }
+
+        doc.save("final_layout.pdf");
+    }
+</script>
+
+</body>
+</html>

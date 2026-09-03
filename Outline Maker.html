@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sticker Outline Maker - VIG-TECH</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #60a5fa;
+            text-align: center;
+        }
+
+        .container {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .upload-box {
+            border: 2px dashed #475569;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .upload-box:hover {
+            border-color: var(--primary);
+            background: #334155;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .controls {
+            margin: 15px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        label {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--primary);
+        }
+
+        input[type="color"] {
+            border: none;
+            width: 50px;
+            height: 30px;
+            cursor: pointer;
+            background: none;
+        }
+
+        /* Canvas hidden visually but used for processing */
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            background-image: linear-gradient(45deg, #2d3748 25%, transparent 25%), 
+                              linear-gradient(-45deg, #2d3748 25%, transparent 25%), 
+                              linear-gradient(45deg, transparent 75%, #2d3748 75%), 
+                              linear-gradient(-45deg, transparent 75%, #2d3748 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            margin-top: 10px;
+            display: none; /* Hidden until image loads */
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+            font-weight: bold;
+            display: none; /* Hidden initially */
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+        
+        .loading {
+            color: #fbbf24;
+            display: none;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Sticker Outline Tool</h2>
+
+    <div class="container">
+        <div class="upload-box" onclick="document.getElementById('fileInput').click()">
+            <p>📁 Tap to Upload PNG (No BG)</p>
+            <input type="file" id="fileInput" accept="image/png">
+        </div>
+
+        <div class="controls" id="controls" style="display:none;">
+            <label>Outline Thickness: <span id="thickVal">10</span>px</label>
+            <input type="range" id="thickness" min="0" max="50" value="10">
+            
+            <label>Outline Color:</label>
+            <input type="color" id="colorPicker" value="#ffffff">
+        </div>
+
+        <p class="loading" id="loadingMsg">Processing... High Quality rakhne mein time lagta hai bhai...</p>
+
+        <canvas id="canvas"></canvas>
+
+        <button class="btn" id="downloadBtn">⬇️ Download Sticker PNG</button>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const thicknessInput = document.getElementById('thickness');
+        const colorInput = document.getElementById('colorPicker');
+        const controls = document.getElementById('controls');
+        const thickVal = document.getElementById('thickVal');
+        const loadingMsg = document.getElementById('loadingMsg');
+
+        let originalImage = new Image();
+        let isImageLoaded = false;
+
+        // 1. Handle File Upload
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                originalImage = new Image();
+                originalImage.onload = () => {
+                    isImageLoaded = true;
+                    controls.style.display = 'flex';
+                    canvas.style.display = 'block';
+                    drawSticker(); // Initial draw
+                };
+                originalImage.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 2. Update when controls change
+        thicknessInput.addEventListener('input', (e) => {
+            thickVal.innerText = e.target.value;
+            drawSticker();
+        });
+        
+        colorInput.addEventListener('input', drawSticker);
+
+        // 3. Main Function to Draw Outline
+        function drawSticker() {
+            if (!isImageLoaded) return;
+
+            const gap = parseInt(thicknessInput.value); // Padding for border
+            const color = colorInput.value;
+
+            // Set Canvas size (Image size + 2x border thickness)
+            // Quality maintain karne ke liye original width/height use karenge
+            canvas.width = originalImage.naturalWidth + (gap * 2);
+            canvas.height = originalImage.naturalHeight + (gap * 2);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // STEP A: Create the Silhouette (Outline shape)
+            // Hum image ko multiple times draw karenge circular motion mein
+            // taaki ek solid stroke ban jaye.
+            
+            if (gap > 0) {
+                // Optimization: Agar gap kam hai toh kam loops, zyada hai toh zyada
+                const steps = Math.max(36, gap * 2); 
+                const angleStep = (Math.PI * 2) / steps;
+
+                for (let i = 0; i < (Math.PI * 2); i += angleStep) {
+                    const x = (Math.cos(i) * gap) + gap;
+                    const y = (Math.sin(i) * gap) + gap;
+                    
+                    // Shadow hack for solid color silhouette
+                    // Lekin simple approach: Draw image multiple times
+                    // Aur uske baad 'source-in' composite se color fill kar denge
+                    ctx.drawImage(originalImage, x, y);
+                }
+
+                // Ab jo shape bani hai, usko Solid Color se fill kar do
+                // 'source-in' keeps the shape but changes color
+                ctx.globalCompositeOperation = 'source-in';
+                ctx.fillStyle = color;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Reset composite operation to draw the original image on top
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            // STEP B: Draw the Original Image in the center
+            // Outline ke upar original image chipka do
+            ctx.drawImage(originalImage, gap, gap);
+
+            // Show download button
+            downloadBtn.style.display = 'block';
+        }
+
+        // 4. Download Function
+        downloadBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'sticker-vig-tech.png';
+            link.href = canvas.toDataURL('image/png', 1.0); // High quality
+            link.click();
+        });
+
+    </script>
+</body>
+</html>

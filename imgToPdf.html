@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro PDF Maker: View, Edit & Control</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --bg: #f1f5f9;
+            --white: #ffffff;
+            --danger: #dc2626;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container {
+            background: var(--white);
+            width: 100%;
+            max-width: 950px;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 { text-align: center; color: var(--text); margin-bottom: 20px; font-weight: 700; }
+
+        /* Top Bar for Reorder Toggle */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            background: #e2e8f0;
+            padding: 10px 15px;
+            border-radius: 8px;
+        }
+
+        .toggle-btn {
+            background: #94a3b8;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.3s;
+        }
+
+        .toggle-btn.active {
+            background: var(--success);
+            box-shadow: 0 2px 10px rgba(22, 163, 74, 0.3);
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            padding: 30px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #f8fafc;
+            transition: 0.3s;
+        }
+        .upload-area:hover { border-color: var(--primary); background: #eff6ff; }
+        .upload-icon { font-size: 32px; color: var(--primary); margin-bottom: 10px; }
+
+        /* Grid for Images */
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+            min-height: 100px;
+        }
+
+        .image-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px;
+            position: relative;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Cursor changes based on state */
+        .image-grid.reorder-enabled .image-card { cursor: move; border: 1px dashed var(--success); }
+        .image-grid:not(.reorder-enabled) .img-wrapper { cursor: zoom-in; }
+
+        .img-wrapper {
+            height: 120px;
+            overflow: hidden;
+            border-radius: 4px;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 5px;
+            position: relative;
+        }
+
+        .img-wrapper:hover::after {
+            content: 'Click to View';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            font-size: 10px;
+            text-align: center;
+            padding: 4px 0;
+        }
+
+        .image-grid.reorder-enabled .img-wrapper:hover::after { display: none; } /* Hide view hint when reordering */
+
+        .image-card img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .file-name {
+            font-size: 11px;
+            color: #64748b;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 8px;
+            padding: 0 4px;
+            font-weight: 600;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: auto;
+        }
+
+        .btn-icon {
+            flex: 1;
+            padding: 6px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            color: white;
+            transition: 0.2s;
+        }
+
+        .btn-edit { background: var(--primary); }
+        .btn-del { background: var(--danger); }
+        .btn-edit:hover, .btn-del:hover { opacity: 0.9; }
+
+        /* Controls Section */
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .control-group label { display: block; font-size: 11px; font-weight: 700; margin-bottom: 5px; color: #64748b; text-transform: uppercase; }
+        select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 14px; background: white; }
+        
+        .convert-btn {
+            background: var(--primary);
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            margin-top: 22px;
+            padding: 10px;
+            border-radius: 6px;
+            transition: 0.3s;
+            font-size: 15px;
+        }
+        .convert-btn:hover { background: #1d4ed8; }
+
+        /* Modal */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0; top: 0; 
+            width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.85);
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 95%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cropper-container-wrapper {
+            height: 60vh;
+            background: #000;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .editor-toolbar {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            background: #f8fafc;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        .tool-btn {
+            background: white;
+            border: 1px solid #cbd5e1;
+            color: var(--text);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .tool-btn:hover { background: #e2e8f0; }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+        }
+
+        .btn-save { background: var(--primary); color: white; border: none; padding: 10px 25px; border-radius: 4px; cursor: pointer; font-weight: 600; }
+        .btn-cancel { background: #94a3b8; color: white; border: none; padding: 10px 25px; border-radius: 4px; cursor: pointer; }
+        
+        /* Hide specific elements in View Mode */
+        .view-mode .btn-save, 
+        .view-mode .crop-tools { display: none !important; }
+
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <!-- Top Bar with Reorder Switch -->
+    <div class="top-bar">
+        <h2 style="margin:0; font-size: 18px; color: #334155;"><i class="fas fa-layer-group"></i> PDF Studio</h2>
+        <button id="reorderBtn" class="toggle-btn" onclick="toggleReorder()">
+            <i class="fas fa-exchange-alt"></i> Enable Reordering
+        </button>
+    </div>
+
+    <!-- Upload -->
+    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+        <i class="fas fa-cloud-upload-alt upload-icon"></i>
+        <p>Click or Drag Images</p>
+        <span style="font-size: 12px; color: #888;">(JPG, PNG, WEBP)</span>
+        <input type="file" id="fileInput" multiple accept="image/*" style="display:none">
+    </div>
+
+    <!-- Sortable Image Grid -->
+    <div class="image-grid" id="imageGrid"></div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <div class="control-group">
+            <label>Quality</label>
+            <select id="qualitySelect">
+                <option value="original">Original</option>
+                <option value="high" selected>High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Page Size</label>
+            <select id="pageSize">
+                <option value="a4">A4</option>
+                <option value="letter">Letter</option>
+                <option value="fit">Fit to Image</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Orientation</label>
+            <select id="orientation">
+                <option value="auto" selected>Auto</option>
+                <option value="p">Portrait</option>
+                <option value="l">Landscape</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>Margins</label>
+            <select id="margin">
+                <option value="10">Normal</option>
+                <option value="0">None</option>
+                <option value="25.4">Wide</option>
+            </select>
+        </div>
+        <button class="convert-btn" onclick="generatePDF()" id="convertBtn">
+            Download PDF
+        </button>
+    </div>
+    <div id="status" style="text-align: center; margin-top: 15px; color: var(--primary); font-weight: bold; font-size: 14px;"></div>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="modal">
+    <div class="modal-content" id="modalContent">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h3 style="margin:0;" id="modalTitle">Edit Image</h3>
+            <span style="font-size:12px; color:#666;">Scroll to zoom</span>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="editor-toolbar">
+            <button class="tool-btn" onclick="cropper.zoom(0.1)"><i class="fas fa-search-plus"></i></button>
+            <button class="tool-btn" onclick="cropper.zoom(-0.1)"><i class="fas fa-search-minus"></i></button>
+            <button class="tool-btn" onclick="cropper.rotate(-90)"><i class="fas fa-undo"></i></button>
+            <button class="tool-btn" onclick="cropper.rotate(90)"><i class="fas fa-redo"></i></button>
+            <button class="tool-btn" onclick="cropper.reset()"><i class="fas fa-sync"></i></button>
+            
+            <!-- Tools only for Edit Mode -->
+            <button class="tool-btn crop-tools" onclick="cropper.setDragMode('move')" title="Pan"><i class="fas fa-arrows-alt"></i></button>
+            <button class="tool-btn crop-tools" onclick="cropper.setDragMode('crop')" title="Crop"><i class="fas fa-crop-alt"></i></button>
+        </div>
+
+        <div class="cropper-container-wrapper">
+            <img id="modalImage" src="" style="max-width: 100%; display: block;">
+        </div>
+        
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Close</button>
+            <button class="btn-save" onclick="saveCrop()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let imagesData = [];
+    let currentEditIndex = null;
+    let cropper = null;
+    let sortableInstance = null;
+    let isReorderEnabled = false; // Default OFF
+
+    const fileInput = document.getElementById('fileInput');
+    const imageGrid = document.getElementById('imageGrid');
+    const modal = document.getElementById('modal');
+    const modalContent = document.getElementById('modalContent');
+    const modalImage = document.getElementById('modalImage');
+    const statusText = document.getElementById('status');
+    const reorderBtn = document.getElementById('reorderBtn');
+
+    // 1. Initialize Sortable (Default Disabled)
+    sortableInstance = new Sortable(imageGrid, {
+        animation: 150,
+        disabled: true, // Initially disabled
+        ghostClass: 'sortable-ghost',
+        onEnd: function (evt) {
+            const item = imagesData.splice(evt.oldIndex, 1)[0];
+            imagesData.splice(evt.newIndex, 0, item);
+        }
+    });
+
+    // 2. Toggle Reorder Function
+    function toggleReorder() {
+        isReorderEnabled = !isReorderEnabled;
+        
+        // Update Sortable state
+        sortableInstance.option("disabled", !isReorderEnabled);
+
+        // Update UI
+        if (isReorderEnabled) {
+            reorderBtn.innerHTML = '<i class="fas fa-check"></i> Reordering ON';
+            reorderBtn.classList.add('active');
+            imageGrid.classList.add('reorder-enabled');
+        } else {
+            reorderBtn.innerHTML = '<i class="fas fa-exchange-alt"></i> Enable Reordering';
+            reorderBtn.classList.remove('active');
+            imageGrid.classList.remove('reorder-enabled');
+        }
+    }
+
+    // 3. File Handling
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+    async function handleFiles(files) {
+        const fileArray = Array.from(files);
+        if (fileArray.length === 0) return;
+        statusText.innerText = "Processing...";
+        for (let file of fileArray) {
+            if (file.type.startsWith('image/')) {
+                const src = await readFileAsDataURL(file);
+                imagesData.push({ id: Date.now() + Math.random(), src: src, name: file.name });
+            }
+        }
+        renderGrid();
+        fileInput.value = ''; 
+        statusText.innerText = `${imagesData.length} images loaded`;
+    }
+
+    function readFileAsDataURL(file) {
+        return new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // 4. Render Grid
+    function renderGrid() {
+        imageGrid.innerHTML = '';
+        imagesData.forEach((imgObj, index) => {
+            const div = document.createElement('div');
+            div.className = 'image-card';
+            
+            // Image Wrapper with Click Event for View
+            div.innerHTML = `
+                <div class="img-wrapper" onclick="viewImage(${index})">
+                    <img src="${imgObj.src}">
+                </div>
+                <div class="file-name" title="${imgObj.name}">${imgObj.name}</div>
+                <div class="card-actions">
+                    <button class="btn-icon btn-edit" onclick="openEditor(${index})"><i class="fas fa-crop-alt"></i> Edit</button>
+                    <button class="btn-icon btn-del" onclick="deleteImage(${index})"><i class="fas fa-trash"></i></button>
+                </div>
+            `;
+            imageGrid.appendChild(div);
+        });
+    }
+
+    function deleteImage(index) {
+        imagesData.splice(index, 1);
+        renderGrid();
+        statusText.innerText = `${imagesData.length} images remaining`;
+    }
+
+    // 5. VIEW MODE (No Edits, Just Zoom)
+    function viewImage(index) {
+        // If Reordering is enabled, clicking image should probably do nothing or handle dragging
+        if (isReorderEnabled) return; 
+
+        modalContent.classList.add('view-mode'); // Hides Save button & Crop tools
+        document.getElementById('modalTitle').innerText = "View Image";
+        
+        modalImage.src = imagesData[index].src;
+        modal.style.display = 'flex';
+
+        if (cropper) cropper.destroy();
+
+        // Initialize Cropper in View Mode
+        cropper = new Cropper(modalImage, {
+            viewMode: 3, // Fill container
+            dragMode: 'move', // Allow panning immediately
+            autoCrop: false, // NO CROP BOX
+            zoomable: true,
+            movable: true,
+            toggleDragModeOnDblclick: false,
+            background: false
+        });
+    }
+
+    // 6. EDIT MODE (Crop & Save)
+    function openEditor(index) {
+        currentEditIndex = index;
+        modalContent.classList.remove('view-mode'); // Shows Save button
+        document.getElementById('modalTitle').innerText = "Edit & Crop";
+        
+        modalImage.src = imagesData[index].src;
+        modal.style.display = 'flex';
+
+        if (cropper) cropper.destroy();
+
+        cropper = new Cropper(modalImage, {
+            viewMode: 1,
+            dragMode: 'crop',
+            autoCropArea: 1, // Full selection initially
+            zoomable: true,
+            background: false,
+            ready() {
+                this.cropper.setCropBoxData(this.cropper.getContainerData());
+            }
+        });
+    }
+
+    function closeModal() {
+        modal.style.display = 'none';
+        if (cropper) cropper.destroy();
+    }
+
+    function saveCrop() {
+        if (!cropper) return;
+        const canvas = cropper.getCroppedCanvas();
+        imagesData[currentEditIndex].src = canvas.toDataURL('image/jpeg', 0.95);
+        renderGrid();
+        closeModal();
+    }
+
+    // 7. PDF Generation (Standard)
+    async function generatePDF() {
+        if (imagesData.length === 0) { alert("No images selected!"); return; }
+        const btn = document.getElementById('convertBtn');
+        btn.disabled = true; btn.innerText = "Generating...";
+        
+        const { jsPDF } = window.jspdf;
+        const pageSize = document.getElementById('pageSize').value;
+        const orientChoice = document.getElementById('orientation').value;
+        const margin = parseFloat(document.getElementById('margin').value);
+        const qualitySetting = document.getElementById('qualitySelect').value;
+
+        let compression = (qualitySetting === 'high') ? 'FAST' : (qualitySetting !== 'original' ? 'SLOW' : 'NONE');
+
+        const doc = new jsPDF({
+            orientation: orientChoice === 'auto' ? 'p' : orientChoice,
+            unit: 'mm',
+            format: pageSize === 'fit' ? 'a4' : pageSize
+        });
+        doc.deletePage(1);
+
+        for (let i = 0; i < imagesData.length; i++) {
+            const imgData = imagesData[i].src;
+            const props = await getImageProperties(imgData);
+            
+            // Logic for fit vs standard (same as previous)
+            let pdfW, pdfH, orient;
+            if (pageSize === 'fit') {
+                pdfW = props.width * 0.264583; pdfH = props.height * 0.264583;
+                orient = pdfW > pdfH ? 'l' : 'p';
+            } else {
+                const temp = new jsPDF({ format: pageSize });
+                const stdW = temp.internal.pageSize.getWidth(); 
+                const stdH = temp.internal.pageSize.getHeight();
+                if (orientChoice === 'auto') {
+                    orient = props.width > props.height ? 'l' : 'p';
+                    pdfW = (orient === 'l') ? Math.max(stdW, stdH) : Math.min(stdW, stdH);
+                    pdfH = (orient === 'l') ? Math.min(stdW, stdH) : Math.max(stdW, stdH);
+                } else {
+                    orient = orientChoice;
+                    pdfW = (orient === 'l') ? Math.max(stdW, stdH) : Math.min(stdW, stdH);
+                    pdfH = (orient === 'l') ? Math.min(stdW, stdH) : Math.max(stdW, stdH);
+                }
+            }
+
+            doc.addPage([pdfW, pdfH], orient);
+            
+            let finalW, finalH, x, y;
+            if (pageSize === 'fit') {
+                finalW = pdfW; finalH = pdfH; x = 0; y = 0;
+            } else {
+                const availW = pdfW - (margin * 2); const availH = pdfH - (margin * 2);
+                const pxToMm = 0.264583;
+                const ratio = Math.min(availW / (props.width * pxToMm), availH / (props.height * pxToMm));
+                finalW = (props.width * pxToMm) * ratio; finalH = (props.height * pxToMm) * ratio;
+                x = (pdfW - finalW) / 2; y = (pdfH - finalH) / 2;
+            }
+            doc.addImage(imgData, 'JPEG', x, y, finalW, finalH, undefined, compression);
+        }
+
+        doc.save('document.pdf');
+        btn.disabled = false; btn.innerText = "Download PDF";
+        statusText.innerText = "PDF Downloaded!";
+    }
+
+    function getImageProperties(url) {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => resolve({ width: img.width, height: img.height });
+            img.src = url;
+        });
+    }
+</script>
+
+</body>
+</html>

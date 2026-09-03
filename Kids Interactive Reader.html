@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Akhyara — Read Aloud for Little Learners</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Noto+Sans+Oriya:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --teal-900:#083b40;
+    --teal-700:#0d5c63;
+    --teal-500:#137a83;
+    --teal-100:#e3f3f2;
+    --coral-600:#ef6a45;
+    --coral-500:#ff8552;
+    --coral-100:#ffe8dc;
+    --cream:#fffaf0;
+    --cream-deep:#fbf1de;
+    --ink:#0a2540;
+    --ink-soft:#4a5a68;
+    --paper:#ffffff;
+    --line:#e7ddc9;
+    --gold:#f2b705;
+    --content-size:28px;
+    --radius-lg:22px;
+    --radius-md:14px;
+    --shadow-card:0 4px 0 var(--line), 0 10px 24px rgba(10,37,64,0.06);
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:
+      radial-gradient(circle at 8% 8%, rgba(19,122,131,0.07), transparent 40%),
+      radial-gradient(circle at 92% 88%, rgba(255,133,82,0.09), transparent 45%),
+      var(--cream);
+    color:var(--ink);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:36px 18px 60px;
+  }
+
+  .shell{
+    width:100%;
+    max-width:880px;
+  }
+
+  /* ---------- HEADER ---------- */
+  header.top{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin-bottom:22px;
+  }
+
+  .mark{
+    width:56px; height:56px;
+    border-radius:16px;
+    background:linear-gradient(155deg, var(--teal-700), var(--teal-900));
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    box-shadow:0 4px 0 rgba(8,59,64,0.35);
+  }
+  .mark svg{ width:30px; height:30px; }
+
+  .titleblock h1{
+    font-family:'Baloo 2', sans-serif;
+    font-weight:800;
+    font-size:1.65rem;
+    color:var(--teal-900);
+    letter-spacing:-0.01em;
+  }
+  .titleblock p{
+    font-size:0.92rem;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+
+  /* ---------- LANGUAGE TABS ---------- */
+  .lang-tabs{
+    display:flex;
+    gap:8px;
+    background:var(--cream-deep);
+    border:1.5px solid var(--line);
+    padding:6px;
+    border-radius:16px;
+    margin-bottom:18px;
+  }
+  .lang-btn{
+    flex:1;
+    padding:12px 16px;
+    border-radius:11px;
+    border:none;
+    background:transparent;
+    font-family:'Baloo 2', sans-serif;
+    font-size:1.05rem;
+    font-weight:700;
+    color:var(--ink-soft);
+    cursor:pointer;
+    transition:background .18s ease, color .18s ease, box-shadow .18s ease;
+  }
+  .lang-btn.active{
+    background:var(--paper);
+    color:var(--coral-600);
+    box-shadow:0 3px 0 var(--line);
+  }
+
+  /* ---------- INPUT CARD ---------- */
+  .card{
+    background:var(--paper);
+    border:1.5px solid var(--line);
+    border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-card);
+    padding:22px 22px 20px;
+    margin-bottom:18px;
+  }
+
+  label.field-label{
+    display:block;
+    font-size:0.86rem;
+    font-weight:700;
+    color:var(--teal-900);
+    margin-bottom:8px;
+  }
+
+  textarea{
+    width:100%;
+    min-height:130px;
+    padding:16px;
+    border-radius:var(--radius-md);
+    border:1.5px solid var(--line);
+    background:var(--cream);
+    font-size:1.2rem;
+    font-family:'Noto Sans Oriya','Inter',sans-serif;
+    line-height:1.7;
+    resize:vertical;
+    outline:none;
+    color:var(--ink);
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  textarea:focus{
+    border-color:var(--teal-500);
+    box-shadow:0 0 0 4px rgba(19,122,131,0.12);
+  }
+  textarea::placeholder{ color:#a9a294; }
+
+  .row-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    margin-top:12px;
+  }
+
+  .pill-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:9px 16px;
+    border-radius:100px;
+    font-size:0.88rem;
+    font-weight:600;
+    border:1.5px solid var(--line);
+    background:var(--cream);
+    color:var(--ink-soft);
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .pill-btn:hover{ background:var(--teal-100); color:var(--teal-900); border-color:var(--teal-500); }
+  .pill-btn.danger:hover{ background:#fdeceb; color:#c0392b; border-color:#e8a49c; }
+
+  /* ---------- CONTROLS PANEL ---------- */
+  .controls-panel{
+    position:sticky;
+    top:14px;
+    z-index:50;
+    background:rgba(255,250,240,0.9);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    border:1.5px solid var(--line);
+    border-radius:var(--radius-lg);
+    box-shadow:0 8px 22px rgba(10,37,64,0.08);
+    padding:16px 20px 18px;
+    margin-bottom:20px;
+  }
+
+  .controls-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:12px;
+  }
+  .controls-title{
+    font-family:'Baloo 2', sans-serif;
+    font-size:0.95rem;
+    font-weight:700;
+    color:var(--teal-900);
+    display:flex;
+    align-items:center;
+    gap:7px;
+  }
+  .reset-link{
+    background:none;
+    border:none;
+    color:var(--coral-600);
+    font-size:0.82rem;
+    font-weight:700;
+    cursor:pointer;
+    padding:4px 8px;
+    border-radius:8px;
+  }
+  .reset-link:hover{ background:var(--coral-100); }
+
+  .controls-grid{
+    display:grid;
+    grid-template-columns:1.3fr 1fr 1fr 1fr;
+    gap:16px;
+    align-items:end;
+  }
+  @media (max-width:700px){
+    .controls-grid{ grid-template-columns:1fr 1fr; }
+  }
+
+  .ctl-item label{
+    display:block;
+    font-size:0.76rem;
+    font-weight:700;
+    color:var(--ink-soft);
+    text-transform:none;
+    margin-bottom:6px;
+  }
+  .ctl-item label .val{
+    float:right;
+    color:var(--coral-600);
+    font-weight:700;
+  }
+
+  select{
+    width:100%;
+    padding:9px 10px;
+    border-radius:10px;
+    border:1.5px solid var(--line);
+    background:var(--paper);
+    font-size:0.85rem;
+    color:var(--ink);
+    outline:none;
+  }
+  select:focus{ border-color:var(--teal-500); }
+
+  input[type="range"]{
+    width:100%;
+    accent-color:var(--coral-600);
+    height:6px;
+  }
+
+  /* ---------- MAIN ACTIONS ---------- */
+  .main-actions{
+    display:flex;
+    gap:12px;
+    margin-bottom:22px;
+  }
+
+  .btn{
+    border:none;
+    border-radius:var(--radius-md);
+    font-family:'Baloo 2', sans-serif;
+    font-weight:700;
+    font-size:1.02rem;
+    cursor:pointer;
+    padding:15px 22px;
+    transition:transform .08s ease, box-shadow .12s ease, background .15s ease;
+  }
+  .btn:active{ transform:translateY(2px); box-shadow:none !important; }
+
+  .btn-parse{
+    flex:2.2;
+    background:var(--coral-600);
+    color:#fff;
+    box-shadow:0 4px 0 #c94f2c;
+  }
+  .btn-parse:hover{ background:#e35f3a; }
+
+  .btn-stop{
+    flex:1;
+    background:var(--paper);
+    color:var(--teal-900);
+    border:1.5px solid var(--line);
+    box-shadow:0 4px 0 var(--line);
+  }
+  .btn-stop:hover{ background:var(--teal-100); border-color:var(--teal-500); }
+
+  /* ---------- SENTENCES ---------- */
+  .sentences-container{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+
+  .sentence-card{
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
+    background:var(--paper);
+    border:1.5px solid var(--line);
+    border-radius:var(--radius-md);
+    box-shadow:0 3px 0 var(--line);
+    padding:16px 18px;
+    transition:border-color .15s ease;
+    animation:cardIn .35s ease backwards;
+  }
+  .sentence-card:hover{ border-color:var(--teal-500); }
+
+  @keyframes cardIn{
+    from{ opacity:0; transform:translateY(6px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  .play-sentence{
+    flex-shrink:0;
+    width:46px; height:46px;
+    border-radius:12px;
+    border:none;
+    background:var(--teal-100);
+    color:var(--teal-700);
+    font-size:1.05rem;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:background .15s ease, color .15s ease;
+    margin-top:2px;
+  }
+  .play-sentence:hover{ background:var(--teal-700); color:#fff; }
+  .play-sentence.speaking{ background:var(--coral-600); color:#fff; }
+
+  .sentence-num{
+    position:absolute;
+    font-size:0.6rem;
+  }
+
+  .sentence-text{
+    font-size:var(--content-size);
+    font-family:'Noto Sans Oriya','Inter',sans-serif;
+    line-height:1.85;
+    color:var(--ink);
+    word-break:break-word;
+  }
+
+  .clickable-word{
+    display:inline-block;
+    padding:2px 8px;
+    margin:2px 2px;
+    border-radius:8px;
+    cursor:pointer;
+    transition:background-color .12s ease, color .12s ease, transform .08s ease;
+  }
+  .clickable-word:hover{
+    background-color:var(--teal-100);
+    color:var(--teal-900);
+  }
+  .clickable-word.active{
+    background-color:var(--gold);
+    color:var(--teal-900);
+    font-weight:700;
+    box-shadow:0 0 0 2px #e0a800;
+  }
+
+  /* ---------- STATUS BAR ---------- */
+  .status-bar{
+    margin-top:22px;
+    padding:12px 16px;
+    border-radius:var(--radius-md);
+    font-size:0.85rem;
+    text-align:center;
+    background:var(--teal-100);
+    color:var(--teal-900);
+    border:1px dashed var(--teal-500);
+    font-weight:600;
+  }
+
+  /* ---------- EMPTY STATE ---------- */
+  .empty-state{
+    text-align:center;
+    padding:34px 20px;
+    color:var(--ink-soft);
+    font-size:0.92rem;
+  }
+  .empty-state .emoji{ font-size:2rem; margin-bottom:8px; display:block; }
+
+  footer.brand{
+    text-align:center;
+    margin-top:28px;
+    font-size:0.78rem;
+    color:#a9a294;
+    font-weight:600;
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <header class="top">
+    <div class="mark">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 5.5C4 4.67 4.67 4 5.5 4H11V19H5.5C4.67 19 4 18.33 4 17.5V5.5Z" fill="#ffe8dc"/>
+        <path d="M13 4H18.5C19.33 4 20 4.67 20 5.5V17.5C20 18.33 19.33 19 18.5 19H13V4Z" fill="#ff8552"/>
+        <path d="M12 4V19" stroke="#083b40" stroke-width="1.2"/>
+      </svg>
+    </div>
+    <div class="titleblock">
+      <h1 id="app-title">Akhyara Reader</h1>
+      <p id="app-subtitle">Tap any word to hear it — built for Class 4–5 learners</p>
+    </div>
+  </header>
+
+  <div class="lang-tabs">
+    <button type="button" class="lang-btn active" id="tab-odia" onclick="setLanguage('odia')">ଓଡ଼ିଆ · Odia</button>
+    <button type="button" class="lang-btn" id="tab-english" onclick="setLanguage('english')">English · Indian</button>
+  </div>
+
+  <div class="card">
+    <label class="field-label" for="text-input" id="label-input">Odia Text ଲେଖନ୍ତୁ କିମ୍ବା Paste କରନ୍ତୁ:</label>
+    <textarea id="text-input" placeholder="ଏଠାରେ ଟେକ୍ସଟ୍ ଲେଖନ୍ତୁ କିମ୍ବା ନମୁନା ଯୋଡ଼ନ୍ତୁ..."></textarea>
+    <div class="row-actions">
+      <button type="button" class="pill-btn" id="add-sample-btn">✨ Add Sample</button>
+      <button type="button" class="pill-btn danger" id="clear-btn">Clear</button>
+    </div>
+  </div>
+
+  <div class="controls-panel">
+    <div class="controls-header">
+      <span class="controls-title">🎚️ Voice &amp; Reading Settings</span>
+      <button type="button" class="reset-link" id="reset-btn">Reset defaults</button>
+    </div>
+    <div class="controls-grid">
+      <div class="ctl-item">
+        <label for="voice-select" id="label-voice">Voice</label>
+        <select id="voice-select"></select>
+      </div>
+      <div class="ctl-item">
+        <label for="font-size">Text size <span class="val" id="font-size-val">28px</span></label>
+        <input type="range" id="font-size" min="18" max="42" value="28" step="1" />
+      </div>
+      <div class="ctl-item">
+        <label for="rate">Speed <span class="val" id="rate-val">0.9x</span></label>
+        <input type="range" id="rate" min="0.5" max="1.5" value="0.9" step="0.05" />
+      </div>
+      <div class="ctl-item">
+        <label for="pitch">Pitch <span class="val" id="pitch-val">1.0x</span></label>
+        <input type="range" id="pitch" min="0.5" max="1.5" value="1" step="0.1" />
+      </div>
+    </div>
+  </div>
+
+  <div class="main-actions">
+    <button class="btn btn-parse" id="parse-btn">⚡ ସେଣ୍ଟେନ୍ସ ଅଲଗା କରନ୍ତୁ</button>
+    <button class="btn btn-stop" id="stop-btn">⏹ Stop</button>
+  </div>
+
+  <div class="sentences-container" id="sentences-output">
+    <div class="empty-state" id="empty-state">
+      <span class="emoji">📖</span>
+      Add a sample or type your own text, then split it into sentences to begin reading.
+    </div>
+  </div>
+
+  <div class="status-bar" id="status-bar">System ready.</div>
+
+  <footer class="brand">Akhyara Reader · VIG-TECH</footer>
+
+</div>
+
+<script>
+  const DEFAULTS = { fontSize: 28, rate: 0.9, pitch: 1.0 };
+
+  const synth = window.speechSynthesis;
+  const textInput = document.getElementById('text-input');
+  const voiceSelect = document.getElementById('voice-select');
+  const parseBtn = document.getElementById('parse-btn');
+  const stopBtn = document.getElementById('stop-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const addSampleBtn = document.getElementById('add-sample-btn');
+  const clearBtn = document.getElementById('clear-btn');
+
+  const tabOdia = document.getElementById('tab-odia');
+  const tabEnglish = document.getElementById('tab-english');
+  const labelInput = document.getElementById('label-input');
+
+  const fontSizeInput = document.getElementById('font-size');
+  const fontSizeVal = document.getElementById('font-size-val');
+  const rateInput = document.getElementById('rate');
+  const pitchInput = document.getElementById('pitch');
+  const rateVal = document.getElementById('rate-val');
+  const pitchVal = document.getElementById('pitch-val');
+
+  const sentencesOutput = document.getElementById('sentences-output');
+  const statusBar = document.getElementById('status-bar');
+
+  let currentLang = 'odia';
+  let voices = [];
+
+  const sampleTexts = {
+    odia: [
+      "ମୁଁ ପ୍ରତିଦିନ ସ୍କୁଲ୍ ଯାଏ । ମୋ ପାଖରେ ଏକ ସୁନ୍ଦର ବହି ଅଛି । ଆମେ ସାଙ୍ଗମାନଙ୍କ ସହିତ ଖେଳୁ । ସୂର୍ଯ୍ୟ ପୂର୍ବ ଦିଗରେ ଉଦୟ ହୁଏ ।",
+      "ଗଛ ଆମକୁ ମିଠା ଫଳ ଦିଏ । ପକ୍ଷୀମାନେ ଆକାଶରେ ଉଡ଼ନ୍ତି । ଆମେ ସବୁବେଳେ ସତ କହିବା ଉଚିତ୍ । ମୋତେ ଚିତ୍ର ଆଙ୍କିବା ଭଲ ଲାଗେ ।",
+      "ଓଡ଼ିଶା ଆମର ରାଜ୍ୟ ଅଟେ । ଆମ ରାଜଧାନୀ ଭୁବନେଶ୍ୱର । ଆମେ ଆମ ଗୁରୁଜନଙ୍କୁ ସମ୍ମାନ କରିବା ।"
+    ],
+    english: [
+      "This is my school. I go to school every day. I have many good friends. We study and play together.",
+      "The sun is bright. Birds are flying in the sky. The mango is very sweet. I love reading story books.",
+      "A dog is a faithful animal. It loves to play ball. We should always help others. Drink water every day."
+    ]
+  };
+
+  let sampleIndices = { odia: 0, english: 0 };
+
+  function populateVoices() {
+    voices = synth.getVoices();
+    voiceSelect.innerHTML = '';
+
+    const isOdia = currentLang === 'odia';
+    let matchingIndianVoices = [];
+    let otherMatchingVoices = [];
+    let otherVoices = [];
+
+    voices.forEach((voice, index) => {
+      const langLower = voice.lang.toLowerCase();
+      const nameLower = voice.name.toLowerCase();
+
+      if (isOdia) {
+        if (langLower.includes('or') || langLower.includes('ory') || nameLower.includes('odia') || nameLower.includes('oriya')) {
+          matchingIndianVoices.push({ voice, index });
+        } else {
+          otherVoices.push({ voice, index });
+        }
+      } else {
+        if (langLower === 'en-in' || langLower.includes('en_in') || nameLower.includes('india')) {
+          matchingIndianVoices.push({ voice, index });
+        } else if (langLower.startsWith('en')) {
+          otherMatchingVoices.push({ voice, index });
+        } else {
+          otherVoices.push({ voice, index });
+        }
+      }
+    });
+
+    const finalList = [...matchingIndianVoices, ...otherMatchingVoices, ...otherVoices];
+
+    finalList.forEach(({ voice, index }, optIdx) => {
+      const option = document.createElement('option');
+      const isIndian = voice.lang.toLowerCase().includes('in') || voice.name.toLowerCase().includes('india');
+      option.textContent = `${voice.name} (${voice.lang})${isIndian ? ' 🇮🇳' : ''}`;
+      option.value = index;
+      if (optIdx === 0) option.selected = true;
+      voiceSelect.appendChild(option);
+    });
+
+    if (matchingIndianVoices.length > 0) {
+      statusBar.textContent = isOdia ? "✅ Odia voice loaded!" : "✅ Indian English (en-IN 🇮🇳) voice selected!";
+    } else {
+      statusBar.textContent = "ℹ️ System voice loaded.";
+    }
+  }
+
+  if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = populateVoices;
+  }
+  populateVoices();
+
+  function setLanguage(lang) {
+    currentLang = lang;
+    if (lang === 'odia') {
+      tabOdia.classList.add('active');
+      tabEnglish.classList.remove('active');
+      labelInput.textContent = "Odia Text ଲେଖନ୍ତୁ କିମ୍ବା Paste କରନ୍ତୁ:";
+      textInput.placeholder = "ଏଠାରେ ଟେକ୍ସଟ୍ ଲେଖନ୍ତୁ କିମ୍ବା ନମୁନା ଯୋଡ଼ନ୍ତୁ...";
+      parseBtn.textContent = "⚡ ସେଣ୍ଟେନ୍ସ ଅଲଗା କରନ୍ତୁ";
+      addSampleBtn.textContent = "✨ Add Odia Sample";
+    } else {
+      tabEnglish.classList.add('active');
+      tabOdia.classList.remove('active');
+      labelInput.textContent = "Type or Paste Simple English:";
+      textInput.placeholder = "Enter simple text or click Add Sample...";
+      parseBtn.textContent = "⚡ Split Sentences";
+      addSampleBtn.textContent = "✨ Add Easy English Sample";
+    }
+
+    populateVoices();
+    if (synth.speaking) synth.cancel();
+    sentencesOutput.innerHTML = `
+      <div class="empty-state" id="empty-state">
+        <span class="emoji">📖</span>
+        Add a sample or type your own text, then split it into sentences to begin reading.
+      </div>`;
+    statusBar.textContent = `Mode switched to ${lang === 'odia' ? 'ଓଡ଼ିଆ' : 'Indian English'}.`;
+  }
+
+  fontSizeInput.addEventListener('input', () => {
+    const size = fontSizeInput.value + 'px';
+    fontSizeVal.textContent = size;
+    document.documentElement.style.setProperty('--content-size', size);
+  });
+
+  rateInput.addEventListener('input', () => { rateVal.textContent = rateInput.value + 'x'; });
+  pitchInput.addEventListener('input', () => { pitchVal.textContent = pitchInput.value + 'x'; });
+
+  resetBtn.addEventListener('click', () => {
+    fontSizeInput.value = DEFAULTS.fontSize;
+    fontSizeVal.textContent = DEFAULTS.fontSize + 'px';
+    document.documentElement.style.setProperty('--content-size', DEFAULTS.fontSize + 'px');
+
+    rateInput.value = DEFAULTS.rate;
+    rateVal.textContent = DEFAULTS.rate + 'x';
+
+    pitchInput.value = DEFAULTS.pitch;
+    pitchVal.textContent = DEFAULTS.pitch + 'x';
+
+    if (synth.speaking) synth.cancel();
+    populateVoices();
+    statusBar.textContent = "🔄 Settings reset to defaults!";
+  });
+
+  function speakText(text, onStartCallback = null, onEndCallback = null) {
+    if (synth.speaking) synth.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = currentLang === 'odia' ? 'or-IN' : 'en-IN';
+
+    const selectedVoice = voices[voiceSelect.value];
+    if (selectedVoice) utterance.voice = selectedVoice;
+
+    utterance.rate = parseFloat(rateInput.value);
+    utterance.pitch = parseFloat(pitchInput.value);
+
+    utterance.onstart = () => {
+      statusBar.textContent = `🔊 Speaking: "${text}"`;
+      if (onStartCallback) onStartCallback();
+    };
+    utterance.onend = () => {
+      statusBar.textContent = "✅ Done";
+      if (onEndCallback) onEndCallback();
+    };
+    utterance.onerror = (e) => {
+      statusBar.textContent = "⚠️ Error: " + e.error;
+      if (onEndCallback) onEndCallback();
+    };
+
+    synth.speak(utterance);
+  }
+
+  function splitIntoSentences(text) {
+    const regex = /([^।॥.?!]+[।॥.?!]?)/g;
+    const matches = text.match(regex);
+    if (!matches) return [text.trim()];
+    return matches.map(s => s.trim()).filter(s => s.length > 0);
+  }
+
+  function processAndRender() {
+    const text = textInput.value.trim();
+    if (!text) {
+      alert(currentLang === 'odia' ? 'ଦୟାକରି କିଛି ଟେକ୍ସଟ୍ ଲେଖନ୍ତୁ!' : 'Please type some text or click Add Sample!');
+      return;
+    }
+
+    sentencesOutput.innerHTML = '';
+    const sentences = splitIntoSentences(text);
+
+    sentences.forEach((sentence, sIndex) => {
+      const card = document.createElement('div');
+      card.className = 'sentence-card';
+      card.style.animationDelay = (sIndex * 0.04) + 's';
+
+      const playBtn = document.createElement('button');
+      playBtn.className = 'play-sentence';
+      playBtn.innerHTML = '▶';
+      playBtn.title = 'Listen to full sentence';
+
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'sentence-text';
+
+      const tokens = sentence.split(/(\s+|[।॥,?!.])/g);
+
+      tokens.forEach(token => {
+        if (!token) return;
+
+        if (/[^\s।॥,?!.]/.test(token)) {
+          const wordSpan = document.createElement('span');
+          wordSpan.className = 'clickable-word';
+          wordSpan.textContent = token;
+
+          wordSpan.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.clickable-word').forEach(w => w.classList.remove('active'));
+            wordSpan.classList.add('active');
+
+            speakText(token, null, () => {
+              wordSpan.classList.remove('active');
+            });
+          });
+
+          contentDiv.appendChild(wordSpan);
+        } else {
+          contentDiv.appendChild(document.createTextNode(token));
+        }
+      });
+
+      playBtn.addEventListener('click', () => {
+        playBtn.classList.add('speaking');
+        speakText(sentence, null, () => {
+          playBtn.classList.remove('speaking');
+        });
+      });
+
+      card.appendChild(playBtn);
+      card.appendChild(contentDiv);
+      sentencesOutput.appendChild(card);
+    });
+
+    statusBar.textContent = `✅ ${sentences.length} sentences ready. Tap any word to hear it.`;
+  }
+
+  addSampleBtn.addEventListener('click', () => {
+    const list = sampleTexts[currentLang];
+    textInput.value = list[sampleIndices[currentLang]];
+    sampleIndices[currentLang] = (sampleIndices[currentLang] + 1) % list.length;
+    processAndRender();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    textInput.value = '';
+    sentencesOutput.innerHTML = `
+      <div class="empty-state" id="empty-state">
+        <span class="emoji">📖</span>
+        Add a sample or type your own text, then split it into sentences to begin reading.
+      </div>`;
+    if (synth.speaking) synth.cancel();
+    statusBar.textContent = "🗑️ Cleared.";
+  });
+
+  parseBtn.addEventListener('click', processAndRender);
+
+  stopBtn.addEventListener('click', () => {
+    if (synth.speaking) synth.cancel();
+    document.querySelectorAll('.clickable-word').forEach(w => w.classList.remove('active'));
+    document.querySelectorAll('.play-sentence').forEach(b => b.classList.remove('speaking'));
+    statusBar.textContent = "⏹ Stopped";
+  });
+</script>
+</body>
+</html>
